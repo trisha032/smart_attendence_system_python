@@ -25,11 +25,14 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo [INFO] Installing backend dependencies...
-cd backend
-call npm.cmd install
+echo [INFO] Setting up Python backend virtual environment...
+cd python_backend
+python -m venv .venv
+call .venv\Scripts\activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
 if errorlevel 1 (
-    echo [ERROR] Failed to install backend dependencies
+    echo [ERROR] Failed to install Python backend dependencies
     pause
     exit /b 1
 )
@@ -54,9 +57,10 @@ echo.
 echo To start the application:
 echo.
 echo OPTION 1 - Manual Start (Two terminals):
-echo   Terminal 1 (Backend):
-echo     cd backend
-echo     npm.cmd start
+echo   Terminal 1 (Python Backend):
+echo     cd python_backend
+echo     call .venv\Scripts\activate
+echo     python run.py
 echo.
 echo   Terminal 2 (Frontend):
 echo     cd frontend
@@ -68,7 +72,7 @@ echo.
 echo ========================================
 echo.
 echo Frontend will open at: http://localhost:3000
-echo Backend API at: http://localhost:5000
+echo Backend API (Python) at: http://localhost:5000
 echo.
 echo Make sure your camera is connected!
 echo.

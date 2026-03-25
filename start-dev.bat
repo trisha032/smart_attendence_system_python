@@ -7,11 +7,9 @@ echo   Starting SmartAttend...
 echo ========================================
 echo.
 
-REM Start backend in a new window
-echo [INFO] Starting backend server...
-cd backend
-start "SmartAttend - Backend" cmd /k "npm.cmd start"
-cd ..
+REM Start Python backend in a new window
+echo [INFO] Starting Python backend server...
+start "SmartAttend - Python Backend" cmd /k "cd /d %~dp0python_backend && if not exist .venv\Scripts\activate (echo [ERROR] Python backend venv not found. Run setup.bat first. && pause) else (call .venv\Scripts\activate && python run.py)"
 
 REM Wait a moment for backend to start
 timeout /t 2 /nobreak
@@ -28,7 +26,7 @@ echo   Application Starting...
 echo ========================================
 echo.
 echo Frontend URL: http://localhost:3000
-echo Backend API: http://localhost:5000
+echo Backend API (Python): http://localhost:5000
 echo.
 echo Two windows will open for backend and frontend
 echo Make sure your camera is connected!
