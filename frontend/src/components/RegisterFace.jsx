@@ -9,6 +9,9 @@ const RegisterFace = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [locationLabel, setLocationLabel] = useState("");
+  const [location, setLocation] = useState(null);
+  const [locationError, setLocationError] = useState("");
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const [cameraActive, setCameraActive] = useState(false);
@@ -54,6 +57,51 @@ const RegisterFace = () => {
     }
   };
 
+  const captureLocation = () => {
+    setLocationError("");
+
+    if (!window.isSecureContext) {
+      setLocationError(
+        "Location requires a secure context. Use http://localhost (not local IP) or HTTPS.",
+      );
+      return;
+    }
+
+    if (!navigator.geolocation) {
+      setLocationError("Geolocation is not supported by your browser.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const nextLocation = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          label: locationLabel.trim() || "Registration location",
+        };
+        setLocation(nextLocation);
+      },
+      (geoError) => {
+        if (geoError?.code === 1) {
+          setLocationError(
+            "Location permission denied. You can continue without location.",
+          );
+          return;
+        }
+        if (geoError?.code === 2) {
+          setLocationError(
+            "Location unavailable right now. You can continue without location.",
+          );
+          return;
+        }
+        setLocationError(
+          "Unable to fetch location. You can continue without location.",
+        );
+      },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  };
+
   const handleRegister = async () => {
     setError("");
     setSuccess(false);
@@ -72,11 +120,13 @@ const RegisterFace = () => {
 
     setLoading(true);
     try {
-      await registerFace(studentName, faceImages);
+      await registerFace(studentName, faceImages, location);
       setSuccess(true);
       setStudentName("");
       setFaceImages([]);
       setCameraActive(false);
+      setLocation(null);
+      setLocationLabel("");
       setTimeout(() => setSuccess(false), 5000);
     } catch (err) {
       setError(
@@ -100,6 +150,39 @@ const RegisterFace = () => {
           <p className="text-gray-600">
             Register your face for attendance tracking
           </p>
+        </div>
+
+        <div className="mb-6">
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
+            Location Label (optional)
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={locationLabel}
+              onChange={(e) => setLocationLabel(e.target.value)}
+              placeholder="Classroom / Campus"
+              className="flex-1 px-4 py-3 border-2 border-indigo-200 rounded-lg focus:outline-none focus:border-indigo-600 transition-colors"
+              disabled={loading}
+            />
+            <button
+              type="button"
+              onClick={captureLocation}
+              disabled={loading}
+              className="px-4 py-3 bg-indigo-100 text-indigo-700 rounded-lg font-semibold hover:bg-indigo-200 transition-colors disabled:opacity-50"
+            >
+              Use Current
+            </button>
+          </div>
+          {location && (
+            <p className="mt-2 text-sm text-emerald-700">
+              Location captured: {location.latitude.toFixed(5)},{" "}
+              {location.longitude.toFixed(5)}
+            </p>
+          )}
+          {locationError && (
+            <p className="mt-2 text-sm text-amber-700">{locationError}</p>
+          )}
         </div>
 
         {/* Name Input */}

@@ -11,9 +11,20 @@ const api = axios.create({
 });
 
 // Authentication & Registration
-export const registerFace = async (studentName, images) => {
+export const registerFace = async (studentName, images, location = null) => {
   const formData = new FormData();
   formData.append("name", studentName);
+  if (location) {
+    if (location.latitude !== undefined && location.latitude !== null) {
+      formData.append("latitude", String(location.latitude));
+    }
+    if (location.longitude !== undefined && location.longitude !== null) {
+      formData.append("longitude", String(location.longitude));
+    }
+    if (location.label) {
+      formData.append("location_label", location.label);
+    }
+  }
   images.forEach((image, index) => {
     formData.append("images", image, `face_${index}.jpg`);
   });
@@ -27,9 +38,20 @@ export const registerFace = async (studentName, images) => {
 };
 
 // Mark Attendance
-export const markAttendance = async (imageData) => {
+export const markAttendance = async (imageData, location = null) => {
   const formData = new FormData();
   formData.append("image", imageData);
+  if (location) {
+    if (location.latitude !== undefined && location.latitude !== null) {
+      formData.append("latitude", String(location.latitude));
+    }
+    if (location.longitude !== undefined && location.longitude !== null) {
+      formData.append("longitude", String(location.longitude));
+    }
+    if (location.label) {
+      formData.append("location_label", location.label);
+    }
+  }
 
   const response = await api.post("/mark-attendance", formData, {
     headers: {
