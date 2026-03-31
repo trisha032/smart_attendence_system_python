@@ -3,15 +3,52 @@ import { Camera, Check, AlertCircle, Clock } from "lucide-react";
 import LoadingSpinner from "./LoadingSpinner";
 import { markAttendance } from "../services/api";
 
+const ALLOWED_LATITUDE = 22.6813;
+const ALLOWED_LONGITUDE = 88.3789;
+const ALLOWED_RADIUS_METERS = 15;
+
 const MarkAttendance = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [recognizedStudent, setRecognizedStudent] = useState("");
   const [attendanceTime, setAttendanceTime] = useState("");
+  const [locationLabel, setLocationLabel] = useState("");
+  const [location, setLocation] = useState(null);
+  const [locationError, setLocationError] = useState("");
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const [cameraActive, setCameraActive] = useState(false);
+
+  const distanceInMeters = (lat1, lon1, lat2, lon2) => {
+    const toRad = (value) => (value * Math.PI) / 180;
+    const earthRadius = 6371000;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return earthRadius * c;
+  };
+
+  const getCurrentLocation = () =>
+    new Promise((resolve, reject) => {
+      if (!window.isSecureContext) {
+        reject(new Error("Location requires secure context"));
+        return;
+      }
+
+      if (!navigator.geolocation) {
+        reject(new Error("Geolocation is not supported by your browser"));
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: 10000,
+      });
+    });
 
   useEffect(() => {
     let stream;
@@ -38,6 +75,85 @@ const MarkAttendance = () => {
     };
   }, [cameraActive]);
 
+  const captureLocation = () => {
+    setLocationError("");
+
+    if (!window.isSecureContext) {
+      setLocationError(
+        "Location requires a secure context. Use http://localhost (not local IP) or HTTPS.",
+      );
+      return;
+    }
+
+    if (!navigator.geolocation) {
+      setLocationError("Geolocation is not supported by your browser.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          label: locationLabel.trim() || "Attendance capture",
+        });
+      },
+      (geoError) => {
+        if (geoError?.code === 1) {
+          setLocationError(
+            "Location permission denied. You can continue without location.",
+          );
+          return;
+        }
+        if (geoError?.code === 2) {
+          setLocationError(
+            "Location unavailable right now. You can continue without location.",
+          );
+          return;
+        }
+        setLocationError(
+          "Unable to fetch location. You can continue without location.",
+        );
+      },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  };
+
+  const startCameraWithGeofence = async () => {
+    setError("");
+    setLocationError("");
+
+    try {
+      const position = await getCurrentLocation();
+      const currentLatitude = position.coords.latitude;
+      const currentLongitude = position.coords.longitude;
+      const distance = distanceInMeters(
+        currentLatitude,
+        currentLongitude,
+        ALLOWED_LATITUDE,
+        ALLOWED_LONGITUDE,
+      );
+
+      if (distance > ALLOWED_RADIUS_METERS) {
+        setError("You are outside the allowed campus area");
+        setCameraActive(false);
+        return;
+      }
+
+      setLocation({
+        latitude: currentLatitude,
+        longitude: currentLongitude,
+        label: locationLabel.trim() || "Attendance capture",
+      });
+      setCameraActive(true);
+    } catch (geoError) {
+      setError(
+        "Location verification failed. Allow location access to open camera.",
+      );
+      setCameraActive(false);
+    }
+  };
+
   const captureAndRecognize = async () => {
     if (videoRef.current && canvasRef.current) {
       const context = canvasRef.current.getContext("2d");
@@ -55,9 +171,10 @@ const MarkAttendance = () => {
         setSuccess(false);
 
         try {
-          const result = await markAttendance(blob);
-          setRecognizedStudent(result.student_name || "Unknown");
-          setAttendanceTime(result.timestamp || new Date().toLocaleString());
+          const response = await markAttendance(blob, location);
+          alert(`Distance: ${response.distance_meters} meters`);
+          setRecognizedStudent(response.student_name || "Unknown");
+          setAttendanceTime(response.timestamp || new Date().toLocaleString());
           setSuccess(true);
           setCameraActive(false);
 
@@ -95,10 +212,38 @@ const MarkAttendance = () => {
         </div>
 
         {/* Camera Section */}
+        <div className="mb-4">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={locationLabel}
+              onChange={(e) => setLocationLabel(e.target.value)}
+              placeholder="Classroom / Lab (optional)"
+              className="flex-1 px-4 py-2 border-2 border-blue-200 rounded-lg focus:outline-none focus:border-blue-600"
+            />
+            <button
+              type="button"
+              onClick={captureLocation}
+              className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg font-semibold hover:bg-blue-200 transition-colors"
+            >
+              Use Current Location
+            </button>
+          </div>
+          {location && (
+            <p className="text-sm text-emerald-700 mt-2">
+              Location captured: {location.latitude.toFixed(5)},{" "}
+              {location.longitude.toFixed(5)}
+            </p>
+          )}
+          {locationError && (
+            <p className="text-sm text-amber-700 mt-2">{locationError}</p>
+          )}
+        </div>
+
         <div className="mb-6">
           {!cameraActive ? (
             <button
-              onClick={() => setCameraActive(true)}
+              onClick={startCameraWithGeofence}
               className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 text-white py-4 rounded-lg font-semibold hover:shadow-lg transition-all duration-200 text-lg"
             >
               <Camera className="inline mr-2" size={24} />

@@ -137,9 +137,9 @@ const Dashboard = () => {
             className="w-full md:w-64 px-4 py-2 border-2 border-indigo-200 rounded-lg focus:outline-none focus:border-indigo-600"
           >
             <option value="all">All Students</option>
-            {students.map((student) => (
-              <option key={student} value={student}>
-                {student}
+            {students.map((student, index) => (
+              <option key={`${student.name}-${index}`} value={student.name}>
+                {student.name}
               </option>
             ))}
           </select>
