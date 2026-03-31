@@ -1,10 +1,10 @@
 from ast import Name
-
 import cv2
 import os
 import pandas as pd
 from datetime import datetime
 from deepface import DeepFace
+from geopy.distance import geodesic
 
 DATASET_PATH = "dataset"
 TEMP_IMAGE = "temp.jpg"
@@ -56,9 +56,11 @@ while True:
     cv2.imwrite(TEMP_IMAGE, frame)
 
     name = recognize_face()
-
-    if name != "Unknown":
+   
+    if name != "Unknown" and check_location():
         mark_attendance(name)
+    else:
+        print("Outside campus - attendance denied")
 
     cv2.putText(frame, name, (50, 50),
                 cv2.FONT_HERSHEY_SIMPLEX,
@@ -69,8 +71,24 @@ while True:
     if cv2.waitKey(1) == 27:
         break
 
-cap.release()
-cv2.destroyAllWindows()
+    cap.release()
+    cv2.destroyAllWindows()
 
-if name == "main":
- start_camera()
+
+def check_location():
+
+    campus_location = (22.67715736202727, 88.37926884360701)
+    student_location = (22.67715736202727, 88.37926884360701)
+
+    distance = geodesic(campus_location, student_location).meters
+
+    print("Distance from campus:", distance)
+
+    if distance <= 100:
+        return True
+    else:
+        return False
+
+
+if __name__ == "__main__":
+    start_camera()
